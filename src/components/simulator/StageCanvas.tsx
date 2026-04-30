@@ -15,6 +15,7 @@ import {
   getBallStart,
   getRampPoints,
 } from "@/lib/simulator/geometry";
+import type { Challenge } from "@/lib/simulator/challenges";
 import type { ExperimentRun, ExperimentSettings, MotionFrame } from "@/lib/simulator/types";
 
 type StageCanvasProps = {
@@ -23,6 +24,7 @@ type StageCanvasProps = {
   runs: ExperimentRun[];
   currentRun: ExperimentRun | null;
   frameIndex: number;
+  challenge: Challenge | null;
   onPredictionChange: (value: number) => void;
 };
 
@@ -149,6 +151,7 @@ function drawStage(
   runs: ExperimentRun[],
   currentRun: ExperimentRun | null,
   frameIndex: number,
+  challenge: Challenge | null,
 ) {
   const ramp = getRampPoints(settings);
   const ballStart = getBallStart(settings);
@@ -175,6 +178,19 @@ function drawStage(
 
   context.fillStyle = "#c6b99f";
   context.fillRect(PREDICTION_MIN_X, FLOOR_Y + 8, PREDICTION_MAX_X - PREDICTION_MIN_X, 22);
+
+  if (challenge) {
+    context.fillStyle = challenge.color;
+    context.globalAlpha = 0.22;
+    context.fillRect(challenge.targetX - challenge.width / 2, FLOOR_Y - 6, challenge.width, 38);
+    context.globalAlpha = 1;
+    context.strokeStyle = challenge.color;
+    context.lineWidth = 3;
+    context.strokeRect(challenge.targetX - challenge.width / 2, FLOOR_Y - 6, challenge.width, 38);
+    context.fillStyle = "#20302f";
+    context.font = "700 16px Geist, Arial, sans-serif";
+    context.fillText(challenge.label, challenge.targetX - challenge.width / 2, FLOOR_Y - 16);
+  }
 
   context.strokeStyle = "#3f4947";
   context.lineWidth = 3;
@@ -232,6 +248,7 @@ export function StageCanvas({
   runs,
   currentRun,
   frameIndex,
+  challenge,
   onPredictionChange,
 }: StageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -253,8 +270,8 @@ export function StageCanvas({
     }
 
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    drawStage(context, settings, predictionX, runs, currentRun, frameIndex);
-  }, [currentRun, frameIndex, predictionX, runs, settings]);
+    drawStage(context, settings, predictionX, runs, currentRun, frameIndex, challenge);
+  }, [challenge, currentRun, frameIndex, predictionX, runs, settings]);
 
   function updatePrediction(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;

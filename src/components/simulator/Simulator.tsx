@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_SETTINGS } from "@/lib/simulator/constants";
+import { CHALLENGES, type ChallengeId } from "@/lib/simulator/challenges";
 import { clampPredictionX } from "@/lib/simulator/geometry";
 import { simulateRoll } from "@/lib/simulator/physics";
 import { createExperimentId, describeChangedSettings } from "@/lib/simulator/scoring";
 import { clearPlayground, loadPlayground, savePlayground } from "@/lib/simulator/storage";
 import type { BallColor, ExperimentRun, ExperimentSettings, ShapeKind, TextureKind } from "@/lib/simulator/types";
 import { ControlPanel } from "./ControlPanel";
+import { ChallengeDock } from "./ChallengeDock";
 import { HistoryPanel } from "./HistoryPanel";
 import { StageCanvas } from "./StageCanvas";
 
@@ -22,6 +24,7 @@ export function Simulator() {
   const [currentRun, setCurrentRun] = useState<ExperimentRun | null>(null);
   const [frameIndex, setFrameIndex] = useState(0);
   const [isRolling, setIsRolling] = useState(false);
+  const [selectedChallenge, setSelectedChallenge] = useState<ChallengeId | null>(null);
   const [loaded, setLoaded] = useState(false);
   const startTimeRef = useRef<number | null>(null);
 
@@ -83,6 +86,10 @@ export function Simulator() {
 
     return currentRun.frames[frameIndex] ?? currentRun.frames.at(-1);
   }, [currentRun, frameIndex]);
+  const activeChallenge = useMemo(
+    () => CHALLENGES.find((challenge) => challenge.id === selectedChallenge) ?? null,
+    [selectedChallenge],
+  );
 
   function handleRoll() {
     const simulation = simulateRoll(settings, `${runs.length}-${Date.now()}`);
@@ -149,6 +156,7 @@ export function Simulator() {
           runs={runs}
           currentRun={currentRun}
           frameIndex={frameIndex}
+          challenge={activeChallenge}
           onPredictionChange={setPredictionX}
         />
       </section>
@@ -162,6 +170,7 @@ export function Simulator() {
           onDuplicate={handleDuplicate}
           onRandomize={handleRandomize}
         />
+        <ChallengeDock selected={selectedChallenge} onSelect={setSelectedChallenge} />
         <HistoryPanel runs={runs} onRestore={handleRestoreRun} />
       </aside>
       <output className="runReadout" aria-live="polite">
