@@ -15,11 +15,14 @@ import {
   getBallStart,
   getRampPoints,
 } from "@/lib/simulator/geometry";
-import type { ExperimentSettings } from "@/lib/simulator/types";
+import type { ExperimentRun, ExperimentSettings, MotionFrame } from "@/lib/simulator/types";
 
 type StageCanvasProps = {
   settings: ExperimentSettings;
   predictionX: number;
+  runs: ExperimentRun[];
+  currentRun: ExperimentRun | null;
+  frameIndex: number;
   onPredictionChange: (value: number) => void;
 };
 
@@ -92,9 +95,66 @@ function drawPredictionFlag(context: CanvasRenderingContext2D, predictionX: numb
   context.restore();
 }
 
-function drawStage(context: CanvasRenderingContext2D, settings: ExperimentSettings, predictionX: number) {
+function drawRunTrail(
+  context: CanvasRenderingContext2D,
+  run: ExperimentRun,
+  index: number,
+  maxFrame = run.frames.length - 1,
+) {
+  const color = BALL_COLORS[run.settings.color];
+  const frames = run.frames.slice(0, Math.max(1, maxFrame));
+
+  context.save();
+  context.globalAlpha = Math.max(0.22, 0.72 - index * 0.08);
+  context.strokeStyle = color.stroke;
+  context.lineWidth = Math.max(2, 5 - index * 0.35);
+  context.beginPath();
+
+  frames.forEach((frame, frameIndex) => {
+    if (frameIndex % 5 !== 0 && frameIndex !== frames.length - 1) {
+      return;
+    }
+
+    if (frameIndex === 0) {
+      context.moveTo(frame.x, frame.y);
+    } else {
+      context.lineTo(frame.x, frame.y);
+    }
+  });
+
+  context.stroke();
+  context.globalAlpha = 1;
+
+  context.fillStyle = color.fill;
+  context.strokeStyle = "#20302f";
+  context.lineWidth = 2;
+  context.beginPath();
+  context.arc(run.landingX, FLOOR_Y - 8, 9, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+
+  context.strokeStyle = "rgba(15, 23, 42, 0.3)";
+  context.setLineDash([5, 5]);
+  context.beginPath();
+  context.moveTo(run.predictionX, FLOOR_Y - 54);
+  context.lineTo(run.landingX, FLOOR_Y - 24);
+  context.stroke();
+  context.restore();
+}
+
+function drawStage(
+  context: CanvasRenderingContext2D,
+  settings: ExperimentSettings,
+  predictionX: number,
+  runs: ExperimentRun[],
+  currentRun: ExperimentRun | null,
+  frameIndex: number,
+) {
   const ramp = getRampPoints(settings);
   const ballStart = getBallStart(settings);
+  const activeFrame: MotionFrame | undefined = currentRun
+    ? currentRun.frames[frameIndex] ?? currentRun.frames.at(-1)
+    : undefined;
 
   context.clearRect(0, 0, STAGE_WIDTH, STAGE_HEIGHT);
 
@@ -131,6 +191,14 @@ function drawStage(context: CanvasRenderingContext2D, settings: ExperimentSettin
     context.stroke();
   }
 
+  runs
+    .slice(0, 8)
+    .reverse()
+    .forEach((run, index) => {
+      const maxFrame = currentRun?.id === run.id ? frameIndex : run.frames.length - 1;
+      drawRunTrail(context, run, index, maxFrame);
+    });
+
   context.strokeStyle = "#6b5137";
   context.lineWidth = 20;
   context.lineCap = "round";
@@ -149,10 +217,23 @@ function drawStage(context: CanvasRenderingContext2D, settings: ExperimentSettin
   context.stroke();
 
   drawPredictionFlag(context, predictionX);
-  drawBall(context, settings, ballStart.x, ballStart.y, -settings.rampHeight * 0.05);
+  drawBall(
+    context,
+    currentRun?.settings ?? settings,
+    activeFrame?.x ?? ballStart.x,
+    activeFrame?.y ?? ballStart.y,
+    activeFrame?.angle ?? -settings.rampHeight * 0.05,
+  );
 }
 
-export function StageCanvas({ settings, predictionX, onPredictionChange }: StageCanvasProps) {
+export function StageCanvas({
+  settings,
+  predictionX,
+  runs,
+  currentRun,
+  frameIndex,
+  onPredictionChange,
+}: StageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -172,8 +253,8 @@ export function StageCanvas({ settings, predictionX, onPredictionChange }: Stage
     }
 
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    drawStage(context, settings, predictionX);
-  }, [settings, predictionX]);
+    drawStage(context, settings, predictionX, runs, currentRun, frameIndex);
+  }, [currentRun, frameIndex, predictionX, runs, settings]);
 
   function updatePrediction(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;

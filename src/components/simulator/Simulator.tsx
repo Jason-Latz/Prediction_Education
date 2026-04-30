@@ -140,6 +140,9 @@ export function Simulator() {
         <StageCanvas
           settings={settings}
           predictionX={predictionX}
+          runs={runs}
+          currentRun={currentRun}
+          frameIndex={frameIndex}
           onPredictionChange={setPredictionX}
         />
       </section>
