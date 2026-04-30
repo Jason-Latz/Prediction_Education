@@ -13,6 +13,7 @@ import { ChallengeDock } from "./ChallengeDock";
 import { ComparePanel } from "./ComparePanel";
 import { HistoryPanel } from "./HistoryPanel";
 import { StageCanvas } from "./StageCanvas";
+import { TheoryPad } from "./TheoryPad";
 
 const SHAPE_OPTIONS: ShapeKind[] = ["sphere", "cylinder", "cube", "egg"];
 const TEXTURE_OPTIONS: TextureKind[] = ["smooth", "rubber", "felt", "gravel"];
@@ -175,6 +176,7 @@ export function Simulator() {
         />
         <ChallengeDock selected={selectedChallenge} onSelect={setSelectedChallenge} />
         <ComparePanel runs={runs} />
+        <TheoryPad />
         <HistoryPanel runs={runs} onRestore={handleRestoreRun} />
       </aside>
       <output className="runReadout" aria-live="polite">

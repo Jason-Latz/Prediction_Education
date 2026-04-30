@@ -93,7 +93,8 @@ button:disabled {
 .controlPanel,
 .historyPanel,
 .challengeDock,
-.comparePanel {
+.comparePanel,
+.theoryPad {
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -115,6 +116,10 @@ button:disabled {
 }
 
 .comparePanel {
+  gap: 10px;
+}
+
+.theoryPad {
   gap: 10px;
 }
 
@@ -197,6 +202,22 @@ button:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.theoryPad textarea {
+  min-height: 76px;
+  resize: vertical;
+  border: 2px solid var(--line);
+  background: #fdf7ea;
+  color: var(--foreground);
+  padding: 9px;
+  line-height: 1.35;
+  font: inherit;
+}
+
+.theoryPad textarea:focus {
+  outline: 3px solid rgba(15, 118, 110, 0.24);
+  border-color: var(--accent);
 }
 
 .historyList li {
