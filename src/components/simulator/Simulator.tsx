@@ -163,8 +163,10 @@ export function Simulator() {
       <aside className="sideRail">
         <ControlPanel
           settings={settings}
+          predictionX={predictionX}
           isRolling={isRolling}
           onChange={setSettings}
+          onPredictionChange={setPredictionX}
           onRoll={handleRoll}
           onReset={handleReset}
           onDuplicate={handleDuplicate}
@@ -178,7 +180,7 @@ export function Simulator() {
           ? `${Math.round(latestRun.missDistance)} px from prediction`
           : activeFrame
             ? `${Math.round(activeFrame.speed * 10)} speed`
-            : "Set a flag, roll, compare."}
+            : "Ready"}
       </output>
     </main>
   );

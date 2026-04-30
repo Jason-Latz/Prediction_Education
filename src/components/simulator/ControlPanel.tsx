@@ -4,15 +4,20 @@ import { Copy, Gauge, Play, RotateCcw, Shuffle } from "lucide-react";
 import {
   BALL_COLORS,
   CONTROL_LABELS,
+  PREDICTION_MAX_X,
+  PREDICTION_MIN_X,
   SHAPES,
   TEXTURES,
 } from "@/lib/simulator/constants";
+import { clampPredictionX, getLandingDistance } from "@/lib/simulator/geometry";
 import type { BallColor, ExperimentSettings, ShapeKind, TextureKind, WorldMode } from "@/lib/simulator/types";
 
 type ControlPanelProps = {
   settings: ExperimentSettings;
+  predictionX: number;
   isRolling: boolean;
   onChange: (settings: ExperimentSettings) => void;
+  onPredictionChange: (value: number) => void;
   onRoll: () => void;
   onReset: () => void;
   onDuplicate: () => void;
@@ -45,8 +50,10 @@ function NumberControl({
 
 export function ControlPanel({
   settings,
+  predictionX,
   isRolling,
   onChange,
+  onPredictionChange,
   onRoll,
   onReset,
   onDuplicate,
@@ -88,6 +95,17 @@ export function ControlPanel({
       </div>
 
       <div className="controlGrid">
+        <label className="numberControl predictionControl">
+          <span>Prediction marker</span>
+          <strong>{Math.round(getLandingDistance(predictionX))}</strong>
+          <input
+            type="range"
+            min={PREDICTION_MIN_X}
+            max={PREDICTION_MAX_X}
+            value={predictionX}
+            onChange={(event) => onPredictionChange(clampPredictionX(Number(event.target.value)))}
+          />
+        </label>
         <NumberControl
           label={CONTROL_LABELS.rampHeight}
           value={settings.rampHeight}
