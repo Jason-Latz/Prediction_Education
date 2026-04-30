@@ -47,6 +47,18 @@ export function getBallRadius(settings: Pick<ExperimentSettings, "ballSize">) {
   return 14 + settings.ballSize * 2.7;
 }
 
+export function getBallStart(settings: Pick<ExperimentSettings, "rampHeight" | "ballSize">) {
+  const radius = getBallRadius(settings);
+  const ramp = getRampPoints(settings);
+  const alongRamp = { x: Math.cos(ramp.angle), y: Math.sin(ramp.angle) };
+  const normal = { x: -Math.sin(ramp.angle), y: Math.cos(ramp.angle) };
+
+  return {
+    x: ramp.start.x + alongRamp.x * (radius + 20) - normal.x * (radius + 10),
+    y: ramp.start.y + alongRamp.y * (radius + 20) - normal.y * (radius + 10),
+  };
+}
+
 export function clampPredictionX(value: number) {
   return clamp(value, PREDICTION_MIN_X, PREDICTION_MAX_X);
 }
