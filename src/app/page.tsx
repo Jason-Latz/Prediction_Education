@@ -1,3 +1,5 @@
+import { Simulator } from "@/components/simulator/Simulator";
+
 export default function Home() {
-  return <main>Prediction Playground</main>;
+  return <Simulator />;
 }
