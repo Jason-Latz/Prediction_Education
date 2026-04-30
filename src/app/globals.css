@@ -50,3 +50,237 @@ button {
 button:disabled {
   cursor: not-allowed;
 }
+
+.appShell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 16px;
+}
+
+.playArea {
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.stageShell {
+  width: 100%;
+  align-self: stretch;
+  min-height: 420px;
+  border: 2px solid var(--line);
+  background: var(--sky);
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(28, 34, 33, 0.14);
+}
+
+.stageCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.controlPanel {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 18px 40px rgba(28, 34, 33, 0.1);
+}
+
+.primaryActions {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) repeat(3, 46px);
+  gap: 8px;
+}
+
+.primaryButton,
+.iconButton,
+.modeSwitch button,
+.shapeGrid button,
+.textureGrid button {
+  min-height: 42px;
+  border: 2px solid #20302f;
+  background: #fdf7ea;
+  color: var(--foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 720;
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.primaryButton:hover,
+.iconButton:hover,
+.modeSwitch button:hover,
+.shapeGrid button:hover,
+.textureGrid button:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton {
+  background: var(--accent);
+  border-color: var(--accent-strong);
+  color: white;
+}
+
+.primaryButton:disabled {
+  opacity: 0.62;
+}
+
+.iconButton {
+  width: 46px;
+}
+
+.modeSwitch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.modeSwitch button {
+  text-transform: capitalize;
+}
+
+.modeSwitch .selected,
+.shapeGrid .selected,
+.textureGrid .selected {
+  background: #20302f;
+  border-color: #20302f;
+  color: #fffaf0;
+}
+
+.controlGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.numberControl {
+  display: grid;
+  grid-template-columns: 1fr 34px;
+  gap: 6px 12px;
+  align-items: center;
+}
+
+.numberControl span,
+.choiceLabel {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 720;
+}
+
+.numberControl strong {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+.numberControl input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.choiceBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.shapeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.shapeGrid button span {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.textureGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.swatchGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.swatchGrid button {
+  width: 100%;
+  aspect-ratio: 1;
+  min-height: 42px;
+  border: 3px solid #20302f;
+  background: var(--swatch);
+}
+
+.swatchGrid .selected {
+  outline: 4px solid rgba(15, 118, 110, 0.28);
+  outline-offset: 2px;
+}
+
+.runReadout {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--line);
+  background: #20302f;
+  color: #fffaf0;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: clamp(0.82rem, 1.4vw, 1rem);
+  text-align: center;
+  padding: 8px 14px;
+}
+
+@media (max-width: 980px) {
+  .appShell {
+    grid-template-columns: 1fr;
+  }
+
+  .controlPanel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+
+  .primaryActions,
+  .modeSwitch {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .appShell {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .stageShell {
+    min-height: 340px;
+  }
+
+  .controlPanel {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .shapeGrid,
+  .textureGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
