@@ -8,6 +8,7 @@ import { createExperimentId, describeChangedSettings } from "@/lib/simulator/sco
 import { clearPlayground, loadPlayground, savePlayground } from "@/lib/simulator/storage";
 import type { BallColor, ExperimentRun, ExperimentSettings, ShapeKind, TextureKind } from "@/lib/simulator/types";
 import { ControlPanel } from "./ControlPanel";
+import { HistoryPanel } from "./HistoryPanel";
 import { StageCanvas } from "./StageCanvas";
 
 const SHAPE_OPTIONS: ShapeKind[] = ["sphere", "cylinder", "cube", "egg"];
@@ -122,6 +123,11 @@ export function Simulator() {
     setPredictionX(clampPredictionX(latestRun.predictionX));
   }
 
+  function handleRestoreRun(run: ExperimentRun) {
+    setSettings(run.settings);
+    setPredictionX(clampPredictionX(run.predictionX));
+  }
+
   function handleRandomize() {
     setSettings((previous) => ({
       ...previous,
@@ -146,15 +152,18 @@ export function Simulator() {
           onPredictionChange={setPredictionX}
         />
       </section>
-      <ControlPanel
-        settings={settings}
-        isRolling={isRolling}
-        onChange={setSettings}
-        onRoll={handleRoll}
-        onReset={handleReset}
-        onDuplicate={handleDuplicate}
-        onRandomize={handleRandomize}
-      />
+      <aside className="sideRail">
+        <ControlPanel
+          settings={settings}
+          isRolling={isRolling}
+          onChange={setSettings}
+          onRoll={handleRoll}
+          onReset={handleReset}
+          onDuplicate={handleDuplicate}
+          onRandomize={handleRandomize}
+        />
+        <HistoryPanel runs={runs} onRestore={handleRestoreRun} />
+      </aside>
       <output className="runReadout" aria-live="polite">
         {latestRun
           ? `${Math.round(latestRun.missDistance)} px from prediction`
