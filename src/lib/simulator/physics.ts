@@ -16,10 +16,10 @@ const STEP_MS = 1000 / 60;
 const MAX_STEPS = 900;
 
 const SHAPE_DRAG: Record<ExperimentSettings["shape"], number> = {
-  sphere: 0.986,
-  cylinder: 0.982,
-  cube: 0.936,
-  egg: 0.958,
+  sphere: 0.9992,
+  cylinder: 0.9966,
+  cube: 0.962,
+  egg: 0.984,
 };
 
 const SHAPE_BOUNCE: Record<ExperimentSettings["shape"], number> = {
@@ -33,12 +33,21 @@ function getTextureFriction(settings: Pick<ExperimentSettings, "texture">) {
   return TEXTURES.find((texture) => texture.id === settings.texture)?.friction ?? 0.02;
 }
 
+function getTextureLoss(settings: Pick<ExperimentSettings, "texture">) {
+  return {
+    smooth: 0.9992,
+    rubber: 0.995,
+    felt: 0.9905,
+    gravel: 0.9845,
+  }[settings.texture];
+}
+
 function makeBall(settings: ExperimentSettings, x: number, y: number, radius: number) {
   const common = {
-    friction: 0.04 + getTextureFriction(settings),
-    frictionStatic: 0.25,
+    friction: 0.012 + getTextureFriction(settings) * 0.35,
+    frictionStatic: 0.09 + getTextureFriction(settings) * 0.6,
     restitution: SHAPE_BOUNCE[settings.shape],
-    frictionAir: 0.004 + getTextureFriction(settings) * 0.08,
+    frictionAir: 0.001 + getTextureFriction(settings) * 0.018,
     density: 0.00075 * (settings.mode === "clean" ? 1 : 0.7 + settings.ballWeight * 0.12),
     label: "prediction-ball",
   };
@@ -86,13 +95,13 @@ function addStaticWorld(engine: Matter.Engine, settings: ExperimentSettings) {
   };
   const floor = Matter.Bodies.rectangle(STAGE_WIDTH / 2, FLOOR_Y + 20, STAGE_WIDTH + 260, 40, {
     isStatic: true,
-    friction: 0.2 + getTextureFriction(settings) * 1.8,
+    friction: 0.035 + getTextureFriction(settings) * 0.45,
     label: "landing-floor",
   });
   const rampBody = Matter.Bodies.rectangle(rampMid.x, rampMid.y, RAMP_LENGTH + 56, 22, {
     isStatic: true,
     angle: ramp.angle,
-    friction: 0.16 + getTextureFriction(settings) * 1.2,
+    friction: 0.045 + getTextureFriction(settings) * 0.35,
     label: "ramp",
   });
 
@@ -123,11 +132,13 @@ function applyRollingLoss(ball: Matter.Body, settings: ExperimentSettings, radiu
     return;
   }
 
-  const textureLoss = 1 - getTextureFriction(settings) * (settings.mode === "clean" ? 0.35 : 0.75);
-  const sizeLoss = 1 - Math.max(0, 6 - settings.ballSize) * 0.0015;
+  const textureLoss = getTextureLoss(settings);
+  const sizeLoss = 0.994 + settings.ballSize * 0.00045;
   const shapeLoss = SHAPE_DRAG[settings.shape];
-  const weightLoss = settings.mode === "clean" ? 1 : 0.986 + settings.ballWeight * 0.0017;
-  const loss = clamp(textureLoss * sizeLoss * shapeLoss * weightLoss, 0.9, 0.997);
+  const weightLoss = 0.9915 + settings.ballWeight * 0.00075;
+  const cleanLoss = textureLoss * sizeLoss * shapeLoss * weightLoss;
+  const messyPenalty = settings.mode === "messy" ? 0.993 : 1;
+  const loss = clamp(cleanLoss * messyPenalty, 0.93, 0.9994);
 
   Matter.Body.setVelocity(ball, {
     x: ball.velocity.x * loss,
