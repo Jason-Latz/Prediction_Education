@@ -9,7 +9,11 @@ export function TheoryPad() {
   const [note, setNote] = useState("");
 
   useEffect(() => {
-    setNote(window.localStorage.getItem(THEORY_KEY) ?? "");
+    const timer = window.setTimeout(() => {
+      setNote(window.localStorage.getItem(THEORY_KEY) ?? "");
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {

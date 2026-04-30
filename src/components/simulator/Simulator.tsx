@@ -31,11 +31,15 @@ export function Simulator() {
   const startTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const saved = loadPlayground();
-    setSettings(saved.settings);
-    setPredictionX(saved.predictionX);
-    setRuns(saved.runs);
-    setLoaded(true);
+    const timer = window.setTimeout(() => {
+      const saved = loadPlayground();
+      setSettings(saved.settings);
+      setPredictionX(saved.predictionX);
+      setRuns(saved.runs);
+      setLoaded(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
