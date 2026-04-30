@@ -92,7 +92,8 @@ button:disabled {
 
 .controlPanel,
 .historyPanel,
-.challengeDock {
+.challengeDock,
+.comparePanel {
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -110,6 +111,10 @@ button:disabled {
 }
 
 .challengeDock {
+  gap: 10px;
+}
+
+.comparePanel {
   gap: 10px;
 }
 
@@ -158,6 +163,40 @@ button:disabled {
   background: #20302f;
   border-color: #20302f;
   color: #fffaf0;
+}
+
+.compareBody {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.compareBody div {
+  border: 2px solid var(--line);
+  background: #fdf7ea;
+  padding: 8px;
+}
+
+.compareBody span,
+.compareBody p {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 720;
+}
+
+.compareBody strong {
+  display: block;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 1rem;
+  margin-top: 2px;
+}
+
+.compareBody p {
+  grid-column: 1 / -1;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .historyList li {

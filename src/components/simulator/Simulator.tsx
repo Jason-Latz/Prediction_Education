@@ -10,6 +10,7 @@ import { clearPlayground, loadPlayground, savePlayground } from "@/lib/simulator
 import type { BallColor, ExperimentRun, ExperimentSettings, ShapeKind, TextureKind } from "@/lib/simulator/types";
 import { ControlPanel } from "./ControlPanel";
 import { ChallengeDock } from "./ChallengeDock";
+import { ComparePanel } from "./ComparePanel";
 import { HistoryPanel } from "./HistoryPanel";
 import { StageCanvas } from "./StageCanvas";
 
@@ -173,6 +174,7 @@ export function Simulator() {
           onRandomize={handleRandomize}
         />
         <ChallengeDock selected={selectedChallenge} onSelect={setSelectedChallenge} />
+        <ComparePanel runs={runs} />
         <HistoryPanel runs={runs} onRestore={handleRestoreRun} />
       </aside>
       <output className="runReadout" aria-live="polite">
