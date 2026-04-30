@@ -21,7 +21,7 @@ export function normalize(value: number, min: number, max: number) {
 }
 
 export function getRampAngle(settings: Pick<ExperimentSettings, "rampHeight">) {
-  return (-10 - settings.rampHeight * 3.2) * (Math.PI / 180);
+  return (10 + settings.rampHeight * 3.2) * (Math.PI / 180);
 }
 
 export function getRampPoints(settings: Pick<ExperimentSettings, "rampHeight">): {
