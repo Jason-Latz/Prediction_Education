@@ -3,14 +3,18 @@ import type { BallColor, ExperimentSettings, ShapeKind, TextureKind } from "./ty
 export const STAGE_WIDTH = 960;
 export const STAGE_HEIGHT = 560;
 export const FLOOR_Y = 430;
-export const RAMP_END_X = 310;
+export const RAMP_END_X = 360;
 export const RAMP_END_Y = FLOOR_Y - 42;
-export const RAMP_LENGTH = 285;
-export const PREDICTION_MIN_X = 360;
-export const PREDICTION_MAX_X = 910;
+export const RAMP_LENGTH_MIN = 322;
+export const RAMP_LENGTH_MAX = 520;
+export const RAMP_RISE_MIN = 80;
+export const RAMP_RISE_MAX = 260;
+export const PREDICTION_MIN_X = 420;
+export const PREDICTION_MAX_X = 1020;
 
 export const DEFAULT_SETTINGS: ExperimentSettings = {
   rampHeight: 6,
+  rampLength: 6,
   ballSize: 5,
   ballWeight: 5,
   shape: "sphere",
@@ -41,8 +45,12 @@ export const BALL_COLORS: Record<BallColor, { label: string; fill: string; strok
   ink: { label: "Ink", fill: "#1f2937", stroke: "#0f172a" },
 };
 
-export const CONTROL_LABELS: Record<keyof Pick<ExperimentSettings, "rampHeight" | "ballSize" | "ballWeight">, string> = {
+export const CONTROL_LABELS: Record<
+  keyof Pick<ExperimentSettings, "rampHeight" | "rampLength" | "ballSize" | "ballWeight">,
+  string
+> = {
   rampHeight: "Ramp height",
+  rampLength: "Ramp length",
   ballSize: "Ball size",
   ballWeight: "Ball weight",
 };

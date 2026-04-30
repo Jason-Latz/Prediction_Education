@@ -14,6 +14,8 @@ import {
   getBallRadius,
   getBallStart,
   getRampPoints,
+  getStageCamera,
+  type StageCamera,
 } from "@/lib/simulator/geometry";
 import type { Challenge } from "@/lib/simulator/challenges";
 import type { ExperimentRun, ExperimentSettings, MotionFrame } from "@/lib/simulator/types";
@@ -74,7 +76,7 @@ function drawBall(
   context.restore();
 }
 
-function drawPredictionFlag(context: CanvasRenderingContext2D, predictionX: number) {
+function drawPredictionFlag(context: CanvasRenderingContext2D, predictionX: number, camera: StageCamera) {
   context.save();
   context.strokeStyle = "#0f172a";
   context.lineWidth = 4;
@@ -92,8 +94,8 @@ function drawPredictionFlag(context: CanvasRenderingContext2D, predictionX: numb
   context.fill();
 
   context.fillStyle = "#0f172a";
-  context.font = "700 18px Geist, Arial, sans-serif";
-  context.fillText("prediction", predictionX - 42, FLOOR_Y + 40);
+  context.font = `700 ${Math.max(16, 18 / camera.scale)}px Geist, Arial, sans-serif`;
+  context.fillText("prediction", predictionX - 42 / camera.scale, FLOOR_Y + 40 / camera.scale);
   context.restore();
 }
 
@@ -153,8 +155,10 @@ function drawStage(
   frameIndex: number,
   challenge: Challenge | null,
 ) {
-  const ramp = getRampPoints(settings);
-  const ballStart = getBallStart(settings);
+  const activeSettings = currentRun?.settings ?? settings;
+  const ramp = getRampPoints(activeSettings);
+  const ballStart = getBallStart(activeSettings);
+  const camera = getStageCamera(activeSettings);
   const activeFrame: MotionFrame | undefined = currentRun
     ? currentRun.frames[frameIndex] ?? currentRun.frames.at(-1)
     : undefined;
@@ -162,11 +166,18 @@ function drawStage(
   context.clearRect(0, 0, STAGE_WIDTH, STAGE_HEIGHT);
 
   context.fillStyle = "#b7dbe5";
-  context.fillRect(0, 0, STAGE_WIDTH, FLOOR_Y);
+  context.fillRect(0, 0, STAGE_WIDTH, STAGE_HEIGHT);
+
+  context.save();
+  context.translate(camera.offsetX, camera.offsetY);
+  context.scale(camera.scale, camera.scale);
+
+  context.fillStyle = "#b7dbe5";
+  context.fillRect(camera.minX, camera.minY, camera.maxX - camera.minX, FLOOR_Y - camera.minY);
 
   context.strokeStyle = "rgba(25, 48, 52, 0.12)";
   context.lineWidth = 1;
-  for (let x = 40; x < STAGE_WIDTH; x += 40) {
+  for (let x = Math.floor(camera.minX / 40) * 40; x < camera.maxX; x += 40) {
     context.beginPath();
     context.moveTo(x, FLOOR_Y - 160);
     context.lineTo(x, FLOOR_Y + 46);
@@ -174,7 +185,7 @@ function drawStage(
   }
 
   context.fillStyle = "#d6ccb7";
-  context.fillRect(0, FLOOR_Y, STAGE_WIDTH, STAGE_HEIGHT - FLOOR_Y);
+  context.fillRect(camera.minX, FLOOR_Y, camera.maxX - camera.minX, STAGE_HEIGHT - FLOOR_Y);
 
   context.fillStyle = "#c6b99f";
   context.fillRect(PREDICTION_MIN_X, FLOOR_Y + 8, PREDICTION_MAX_X - PREDICTION_MIN_X, 22);
@@ -188,7 +199,7 @@ function drawStage(
     context.lineWidth = 3;
     context.strokeRect(challenge.targetX - challenge.width / 2, FLOOR_Y - 6, challenge.width, 38);
     context.fillStyle = "#20302f";
-    context.font = "700 16px Geist, Arial, sans-serif";
+    context.font = `700 ${Math.max(14, 16 / camera.scale)}px Geist, Arial, sans-serif`;
     context.fillText(challenge.label, challenge.targetX - challenge.width / 2, FLOOR_Y - 16);
   }
 
@@ -232,7 +243,7 @@ function drawStage(
   context.lineTo(ramp.end.x - 16, FLOOR_Y);
   context.stroke();
 
-  drawPredictionFlag(context, predictionX);
+  drawPredictionFlag(context, predictionX, camera);
   drawBall(
     context,
     currentRun?.settings ?? settings,
@@ -240,6 +251,7 @@ function drawStage(
     activeFrame?.y ?? ballStart.y,
     activeFrame?.angle ?? -settings.rampHeight * 0.05,
   );
+  context.restore();
 }
 
 export function StageCanvas({
@@ -281,7 +293,8 @@ export function StageCanvas({
 
     const rect = canvas.getBoundingClientRect();
     const localX = event.clientX - rect.left;
-    onPredictionChange(canvasToPredictionX(localX, rect.width));
+    const camera = getStageCamera(currentRun?.settings ?? settings);
+    onPredictionChange(canvasToPredictionX(localX, rect.width, camera));
   }
 
   return (

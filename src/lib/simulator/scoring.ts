@@ -3,6 +3,7 @@ import type { ExperimentRun, ExperimentSettings } from "./types";
 
 const SETTING_LABELS: Record<keyof ExperimentSettings, string> = {
   rampHeight: "height",
+  rampLength: "length",
   ballSize: "size",
   ballWeight: "weight",
   shape: "shape",

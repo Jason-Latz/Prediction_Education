@@ -112,6 +112,11 @@ export function ControlPanel({
           onChange={(rampHeight) => patch({ rampHeight })}
         />
         <NumberControl
+          label={CONTROL_LABELS.rampLength}
+          value={settings.rampLength}
+          onChange={(rampLength) => patch({ rampLength })}
+        />
+        <NumberControl
           label={CONTROL_LABELS.ballSize}
           value={settings.ballSize}
           onChange={(ballSize) => patch({ ballSize })}

@@ -22,6 +22,12 @@ function assertAtLeast(label: string, actual: number, expected: number) {
   }
 }
 
+function assertAtMost(label: string, actual: number, expected: number) {
+  if (actual > expected) {
+    throw new Error(`${label} spread was ${actual}px; expected at most ${expected}px`);
+  }
+}
+
 function assertEqual(label: string, values: number[]) {
   const unique = new Set(values);
 
@@ -33,6 +39,10 @@ function assertEqual(label: string, values: number[]) {
 const heightSpread = spread([
   { label: "low", settings: { rampHeight: 1 } },
   { label: "high", settings: { rampHeight: 10 } },
+]);
+const lengthSpread = spread([
+  { label: "short", settings: { rampLength: 1 } },
+  { label: "long", settings: { rampLength: 10 } },
 ]);
 const sizeSpread = spread([
   { label: "small", settings: { ballSize: 1 } },
@@ -56,6 +66,7 @@ const colorLandings = (["teal", "coral", "gold", "violet", "ink"] as const).map(
 );
 
 assertAtLeast("ramp height", heightSpread, 90);
+assertAtMost("ramp length", lengthSpread, 45);
 assertAtLeast("ball size", sizeSpread, 50);
 assertAtLeast("ball weight", weightSpread, 90);
 assertAtLeast("texture", textureSpread, 90);
@@ -64,6 +75,7 @@ assertEqual("color", colorLandings);
 
 console.log("Physics sweep passed", {
   heightSpread,
+  lengthSpread,
   sizeSpread,
   weightSpread,
   textureSpread,

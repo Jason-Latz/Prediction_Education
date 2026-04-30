@@ -8,6 +8,7 @@ export type BallColor = "teal" | "coral" | "gold" | "violet" | "ink";
 
 export type ExperimentSettings = {
   rampHeight: number;
+  rampLength: number;
   ballSize: number;
   ballWeight: number;
   shape: ShapeKind;

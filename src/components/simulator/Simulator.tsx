@@ -145,6 +145,7 @@ export function Simulator() {
     setSettings((previous) => ({
       ...previous,
       rampHeight: 1 + Math.floor(Math.random() * 10),
+      rampLength: 1 + Math.floor(Math.random() * 10),
       ballSize: 1 + Math.floor(Math.random() * 10),
       ballWeight: 1 + Math.floor(Math.random() * 10),
       shape: SHAPE_OPTIONS[Math.floor(Math.random() * SHAPE_OPTIONS.length)],

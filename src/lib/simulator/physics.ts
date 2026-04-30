@@ -3,9 +3,7 @@ import {
   FLOOR_Y,
   PREDICTION_MAX_X,
   PREDICTION_MIN_X,
-  RAMP_LENGTH,
   STAGE_HEIGHT,
-  STAGE_WIDTH,
   TEXTURES,
 } from "./constants";
 import { clamp, getBallRadius, getRampPoints } from "./geometry";
@@ -16,10 +14,10 @@ const STEP_MS = 1000 / 60;
 const MAX_STEPS = 900;
 
 const SHAPE_DRAG: Record<ExperimentSettings["shape"], number> = {
-  sphere: 0.9992,
-  cylinder: 0.9966,
-  cube: 0.962,
-  egg: 0.984,
+  sphere: 0.9996,
+  cylinder: 0.9982,
+  cube: 0.972,
+  egg: 0.99,
 };
 
 const SHAPE_BOUNCE: Record<ExperimentSettings["shape"], number> = {
@@ -35,19 +33,19 @@ function getTextureFriction(settings: Pick<ExperimentSettings, "texture">) {
 
 function getTextureLoss(settings: Pick<ExperimentSettings, "texture">) {
   return {
-    smooth: 0.9992,
-    rubber: 0.995,
-    felt: 0.9905,
-    gravel: 0.9845,
+    smooth: 0.9995,
+    rubber: 0.9965,
+    felt: 0.993,
+    gravel: 0.988,
   }[settings.texture];
 }
 
 function makeBall(settings: ExperimentSettings, x: number, y: number, radius: number) {
   const common = {
-    friction: 0.012 + getTextureFriction(settings) * 0.35,
-    frictionStatic: 0.09 + getTextureFriction(settings) * 0.6,
+    friction: 0.008 + getTextureFriction(settings) * 0.22,
+    frictionStatic: 0.07 + getTextureFriction(settings) * 0.5,
     restitution: SHAPE_BOUNCE[settings.shape],
-    frictionAir: 0.001 + getTextureFriction(settings) * 0.018,
+    frictionAir: 0.0008 + getTextureFriction(settings) * 0.014,
     density: 0.00075 * (settings.mode === "clean" ? 1 : 0.7 + settings.ballWeight * 0.12),
     label: "prediction-ball",
   };
@@ -93,15 +91,16 @@ function addStaticWorld(engine: Matter.Engine, settings: ExperimentSettings) {
     x: (ramp.start.x + ramp.end.x) / 2,
     y: (ramp.start.y + ramp.end.y) / 2,
   };
-  const floor = Matter.Bodies.rectangle(STAGE_WIDTH / 2, FLOOR_Y + 20, STAGE_WIDTH + 260, 40, {
+  const floorWidth = PREDICTION_MAX_X + 420;
+  const floor = Matter.Bodies.rectangle(floorWidth / 2 - 110, FLOOR_Y + 20, floorWidth, 40, {
     isStatic: true,
-    friction: 0.035 + getTextureFriction(settings) * 0.45,
+    friction: 0.022 + getTextureFriction(settings) * 0.32,
     label: "landing-floor",
   });
-  const rampBody = Matter.Bodies.rectangle(rampMid.x, rampMid.y, RAMP_LENGTH + 56, 22, {
+  const rampBody = Matter.Bodies.rectangle(rampMid.x, rampMid.y, ramp.length + 56, 22, {
     isStatic: true,
     angle: ramp.angle,
-    friction: 0.045 + getTextureFriction(settings) * 0.35,
+    friction: 0.032 + getTextureFriction(settings) * 0.24,
     label: "ramp",
   });
 
@@ -133,12 +132,12 @@ function applyRollingLoss(ball: Matter.Body, settings: ExperimentSettings, radiu
   }
 
   const textureLoss = getTextureLoss(settings);
-  const sizeLoss = 0.994 + settings.ballSize * 0.00045;
+  const sizeLoss = 0.9955 + settings.ballSize * 0.00034;
   const shapeLoss = SHAPE_DRAG[settings.shape];
-  const weightLoss = 0.9915 + settings.ballWeight * 0.00075;
+  const weightLoss = 0.994 + settings.ballWeight * 0.00055;
   const cleanLoss = textureLoss * sizeLoss * shapeLoss * weightLoss;
-  const messyPenalty = settings.mode === "messy" ? 0.993 : 1;
-  const loss = clamp(cleanLoss * messyPenalty, 0.93, 0.9994);
+  const messyPenalty = settings.mode === "messy" ? 0.9955 : 1;
+  const loss = clamp(cleanLoss * messyPenalty, 0.945, 0.9997);
 
   Matter.Body.setVelocity(ball, {
     x: ball.velocity.x * loss,
@@ -157,6 +156,7 @@ export function simulateRoll(settings: ExperimentSettings, seedSuffix = "roll"):
   const ball = makeBall(settings, start.x, start.y, radius);
   const seed = seedFromSettings([
     settings.rampHeight.toString(),
+    settings.rampLength.toString(),
     settings.ballSize.toString(),
     settings.ballWeight.toString(),
     settings.shape,
@@ -180,8 +180,8 @@ export function simulateRoll(settings: ExperimentSettings, seedSuffix = "roll"):
 
     peakSpeed = Math.max(peakSpeed, ball.speed);
     frames.push({
-      x: clamp(ball.position.x, 0, STAGE_WIDTH),
-      y: clamp(ball.position.y, 0, STAGE_HEIGHT),
+      x: ball.position.x,
+      y: ball.position.y,
       angle: ball.angle,
       speed: ball.speed,
       t: step * STEP_MS,
@@ -196,7 +196,7 @@ export function simulateRoll(settings: ExperimentSettings, seedSuffix = "roll"):
       stableSteps = 0;
     }
 
-    if (ball.position.x > PREDICTION_MAX_X + 90 || ball.position.y > STAGE_HEIGHT + 80) {
+    if (ball.position.x > PREDICTION_MAX_X + 140 || ball.position.y > STAGE_HEIGHT + 80) {
       stoppedAt = step * STEP_MS;
       break;
     }
