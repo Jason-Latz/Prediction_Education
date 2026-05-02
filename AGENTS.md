@@ -19,3 +19,4 @@ Do not leave that learning only in chat history.
 - When Jason asks for a minimum commit count, make the commits meaningful and useful for understanding the build history; do not satisfy the count with padding commits.
 - For educational simulations, verify the domain behavior numerically, not just visually; run a sweep that confirms the variables intended to matter produce visibly different outcomes and inert variables remain inert.
 - When Jason requests adding a variable he expects may have little or no effect, keep it available for inquiry but add a regression check so it does not accidentally dominate the phenomena students are meant to notice.
+- Jason prefers the physics simulator to model real-world physics accurately; do not present tuned/game-physics behavior as physically accurate, and prefer explicit physics equations plus documented assumptions.

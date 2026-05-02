@@ -1,6 +1,6 @@
 # Prediction Playground
 
-Prediction Playground is a Papert-inspired physics microworld for children to explore how inputs change outcomes. It is built as a Next.js app for Vercel and uses Matter.js for the rollout simulation.
+Prediction Playground is a Papert-inspired physics microworld for children to explore how inputs change outcomes. It is built as a Next.js app for Vercel and uses an explicit classroom-scale physics model for the rollout simulation.
 
 ## Microworld
 
@@ -9,6 +9,7 @@ The app is intentionally open-ended. Children choose a ramp setup, place a predi
 ## Variables
 
 - Ramp height
+- Ramp length
 - Ball size
 - Ball weight
 - Shape
@@ -21,7 +22,7 @@ Color is present as a visible variable that does not affect the physics model. T
 ## Features
 
 - Canvas playground with draggable prediction flag
-- Matter.js rollout simulation
+- Physics model with ramp geometry, rolling inertia, rolling resistance, air drag, and floor deceleration
 - Ghost trails and landing dots
 - Challenge targets for optional goals
 - Side-by-side comparison between recent runs
@@ -40,6 +41,7 @@ npm run dev
 
 ```bash
 npm run lint
+npm run test:physics
 npm run build
 ```
 

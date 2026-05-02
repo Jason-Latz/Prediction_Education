@@ -1,159 +1,244 @@
-import Matter from "matter-js";
 import {
   FLOOR_Y,
   PREDICTION_MAX_X,
   PREDICTION_MIN_X,
-  STAGE_HEIGHT,
   TEXTURES,
 } from "./constants";
-import { clamp, getBallRadius, getRampPoints } from "./geometry";
+import { clamp, getBallRadius, getBallStart, getRampPoints, normalize } from "./geometry";
 import { mulberry32, seedFromSettings } from "./random";
 import type { ExperimentSettings, MotionFrame, SimulationResult } from "./types";
 
 const STEP_MS = 1000 / 60;
+const STEP_SECONDS = STEP_MS / 1000;
 const MAX_STEPS = 900;
+const PIXELS_PER_METER = 260;
+const GRAVITY = 9.81;
+const AIR_DENSITY = 1.225;
 
-const SHAPE_DRAG: Record<ExperimentSettings["shape"], number> = {
-  sphere: 0.9996,
-  cylinder: 0.9982,
-  cube: 0.972,
-  egg: 0.99,
+type ShapePhysics = {
+  inertiaRatio: number;
+  dragCoefficient: number;
+  rampEfficiency: number;
+  landingEfficiency: number;
+  floorLossMultiplier: number;
+  wobble: number;
 };
 
-const SHAPE_BOUNCE: Record<ExperimentSettings["shape"], number> = {
-  sphere: 0.18,
-  cylinder: 0.12,
-  cube: 0.04,
-  egg: 0.1,
+const SHAPE_PHYSICS: Record<ExperimentSettings["shape"], ShapePhysics> = {
+  sphere: {
+    inertiaRatio: 0.4,
+    dragCoefficient: 0.47,
+    rampEfficiency: 1,
+    landingEfficiency: 0.86,
+    floorLossMultiplier: 1,
+    wobble: 0,
+  },
+  cylinder: {
+    inertiaRatio: 0.5,
+    dragCoefficient: 0.82,
+    rampEfficiency: 0.96,
+    landingEfficiency: 0.82,
+    floorLossMultiplier: 1.18,
+    wobble: 0,
+  },
+  cube: {
+    inertiaRatio: 0.82,
+    dragCoefficient: 1.05,
+    rampEfficiency: 0.72,
+    landingEfficiency: 0.55,
+    floorLossMultiplier: 4.2,
+    wobble: 0.45,
+  },
+  egg: {
+    inertiaRatio: 0.56,
+    dragCoefficient: 0.62,
+    rampEfficiency: 0.86,
+    landingEfficiency: 0.78,
+    floorLossMultiplier: 2.15,
+    wobble: 0.34,
+  },
 };
 
-function getTextureFriction(settings: Pick<ExperimentSettings, "texture">) {
-  return TEXTURES.find((texture) => texture.id === settings.texture)?.friction ?? 0.02;
+function getTextureCrr(settings: Pick<ExperimentSettings, "texture">) {
+  const texture = TEXTURES.find((candidate) => candidate.id === settings.texture);
+  const base = texture?.friction ?? 0.02;
+
+  return {
+    smooth: 0.018,
+    rubber: 0.032,
+    felt: 0.052,
+    gravel: 0.082,
+  }[settings.texture] ?? base;
 }
 
-function getTextureLoss(settings: Pick<ExperimentSettings, "texture">) {
+function getFloorCrr(settings: Pick<ExperimentSettings, "texture">) {
   return {
-    smooth: 0.9995,
-    rubber: 0.9965,
-    felt: 0.993,
-    gravel: 0.988,
+    smooth: 0.12,
+    rubber: 0.165,
+    felt: 0.235,
+    gravel: 0.34,
   }[settings.texture];
 }
 
-function makeBall(settings: ExperimentSettings, x: number, y: number, radius: number) {
-  const common = {
-    friction: 0.008 + getTextureFriction(settings) * 0.22,
-    frictionStatic: 0.07 + getTextureFriction(settings) * 0.5,
-    restitution: SHAPE_BOUNCE[settings.shape],
-    frictionAir: 0.0008 + getTextureFriction(settings) * 0.014,
-    density: 0.00075 * (settings.mode === "clean" ? 1 : 0.7 + settings.ballWeight * 0.12),
-    label: "prediction-ball",
-  };
-
-  if (settings.shape === "cube") {
-    return Matter.Bodies.rectangle(x, y, radius * 1.65, radius * 1.65, {
-      ...common,
-      chamfer: { radius: radius * 0.04 },
-    });
-  }
-
-  if (settings.shape === "egg") {
-    const body = Matter.Bodies.polygon(x, y, 24, radius, common);
-    Matter.Body.scale(body, 0.78, 1.18);
-    Matter.Body.setCentre(body, { x: x + radius * 0.1, y }, false);
-    return body;
-  }
-
-  const sides = settings.shape === "cylinder" ? 18 : 36;
-  const body = Matter.Bodies.polygon(x, y, sides, radius, common);
-
-  if (settings.shape === "cylinder") {
-    Matter.Body.setInertia(body, body.inertia * 0.72);
-  }
-
-  return body;
+function getMassKg(settings: Pick<ExperimentSettings, "ballWeight">) {
+  return 0.045 + normalize(settings.ballWeight, 1, 10) * 0.405;
 }
 
-function ballStart(settings: ExperimentSettings, radius: number) {
+function getRadiusMeters(radiusPx: number) {
+  return radiusPx / PIXELS_PER_METER;
+}
+
+function dragAcceleration(speed: number, settings: ExperimentSettings, radiusMeters: number) {
+  if (speed <= 0) {
+    return 0;
+  }
+
+  const shape = SHAPE_PHYSICS[settings.shape];
+  const area = Math.PI * radiusMeters ** 2;
+  return (0.5 * AIR_DENSITY * shape.dragCoefficient * area * speed ** 2) / getMassKg(settings);
+}
+
+function makeFrame(x: number, y: number, angle: number, speed: number, t: number): MotionFrame {
+  return {
+    x,
+    y,
+    angle,
+    speed,
+    t,
+  };
+}
+
+function pushFrame(frames: MotionFrame[], x: number, y: number, angle: number, speed: number) {
+  frames.push(makeFrame(x, y, angle, speed, frames.length * STEP_MS));
+}
+
+function simulateRamp(settings: ExperimentSettings, random: () => number) {
+  const radiusPx = getBallRadius(settings);
+  const radiusMeters = getRadiusMeters(radiusPx);
   const ramp = getRampPoints(settings);
-  const alongRamp = { x: Math.cos(ramp.angle), y: Math.sin(ramp.angle) };
+  const start = getBallStart(settings);
+  const tangent = { x: Math.cos(ramp.angle), y: Math.sin(ramp.angle) };
   const normal = { x: -Math.sin(ramp.angle), y: Math.cos(ramp.angle) };
+  const shape = SHAPE_PHYSICS[settings.shape];
+  const crr = getTextureCrr(settings) * (settings.mode === "messy" ? 1.08 : 1);
+  const startAlongRamp = radiusPx + 20;
+  const endAlongRamp = Math.max(startAlongRamp + 1, ramp.length - radiusPx * 0.25);
+  const rampDistanceMeters = (endAlongRamp - startAlongRamp) / PIXELS_PER_METER;
+  const frames: MotionFrame[] = [];
+  let distanceMeters = 0;
+  let speed = 0;
+  let angle = -settings.rampHeight * 0.04;
+
+  for (let step = 0; step < MAX_STEPS && distanceMeters < rampDistanceMeters; step += 1) {
+    const alongAcceleration =
+      ((GRAVITY * (Math.sin(ramp.angle) - crr * Math.cos(ramp.angle))) /
+        (1 + shape.inertiaRatio)) *
+      shape.rampEfficiency;
+    const airLoss = dragAcceleration(speed, settings, radiusMeters) / (1 + shape.inertiaRatio);
+    const wobbleLoss = shape.wobble * Math.sin(distanceMeters * 10 + settings.rampHeight) * 0.08;
+    const messyNoise = settings.mode === "messy" ? (random() - 0.5) * 0.18 : 0;
+    const acceleration = Math.max(0, alongAcceleration - airLoss - Math.max(0, wobbleLoss) + messyNoise);
+
+    speed = Math.max(0, speed + acceleration * STEP_SECONDS);
+    distanceMeters += speed * STEP_SECONDS;
+    angle += (speed * STEP_SECONDS) / Math.max(0.01, radiusMeters);
+
+    const alongPixels = startAlongRamp + distanceMeters * PIXELS_PER_METER;
+    const x = ramp.start.x + tangent.x * alongPixels - normal.x * (radiusPx + 10);
+    const y = ramp.start.y + tangent.y * alongPixels - normal.y * (radiusPx + 10);
+    pushFrame(frames, x, y, angle, speed);
+  }
+
+  const endX = ramp.start.x + tangent.x * endAlongRamp - normal.x * (radiusPx + 10);
+  const endY = ramp.start.y + tangent.y * endAlongRamp - normal.y * (radiusPx + 10);
+
+  if (frames.length === 0) {
+    pushFrame(frames, start.x, start.y, angle, speed);
+  }
 
   return {
-    x: ramp.start.x + alongRamp.x * (radius + 20) - normal.x * (radius + 10),
-    y: ramp.start.y + alongRamp.y * (radius + 20) - normal.y * (radius + 10),
+    frames,
+    end: { x: endX, y: endY },
+    tangent,
+    speed,
+    angle,
+    radiusPx,
+    radiusMeters,
   };
 }
 
-function addStaticWorld(engine: Matter.Engine, settings: ExperimentSettings) {
-  const ramp = getRampPoints(settings);
-  const rampMid = {
-    x: (ramp.start.x + ramp.end.x) / 2,
-    y: (ramp.start.y + ramp.end.y) / 2,
-  };
-  const floorWidth = PREDICTION_MAX_X + 420;
-  const floor = Matter.Bodies.rectangle(floorWidth / 2 - 110, FLOOR_Y + 20, floorWidth, 40, {
-    isStatic: true,
-    friction: 0.022 + getTextureFriction(settings) * 0.32,
-    label: "landing-floor",
-  });
-  const rampBody = Matter.Bodies.rectangle(rampMid.x, rampMid.y, ramp.length + 56, 22, {
-    isStatic: true,
-    angle: ramp.angle,
-    friction: 0.032 + getTextureFriction(settings) * 0.24,
-    label: "ramp",
-  });
-
-  Matter.World.add(engine.world, [floor, rampBody]);
-}
-
-function applyMessyWorldForces(
-  ball: Matter.Body,
+function simulateRampTransition(
   settings: ExperimentSettings,
+  rampResult: ReturnType<typeof simulateRamp>,
+  frames: MotionFrame[],
+) {
+  const shape = SHAPE_PHYSICS[settings.shape];
+  const floorCenterY = FLOOR_Y - rampResult.radiusPx;
+  const startX = rampResult.end.x;
+  const startY = rampResult.end.y;
+  const endX = startX + rampResult.radiusPx * 0.45;
+  let angle = rampResult.angle;
+
+  for (let step = 1; step <= 8; step += 1) {
+    const progress = step / 8;
+    const eased = 1 - (1 - progress) ** 2;
+    const x = startX + (endX - startX) * eased;
+    const y = startY + (floorCenterY - startY) * eased;
+    angle += (rampResult.speed * STEP_SECONDS) / Math.max(0.01, rampResult.radiusMeters);
+    pushFrame(frames, x, y, angle, rampResult.speed);
+  }
+
+  return {
+    x: endX,
+    y: floorCenterY,
+    speed: Math.max(0, rampResult.speed * shape.landingEfficiency),
+    angle,
+  };
+}
+
+function simulateFloor(
+  settings: ExperimentSettings,
+  floorStart: ReturnType<typeof simulateRampTransition>,
+  rampResult: ReturnType<typeof simulateRamp>,
+  frames: MotionFrame[],
   random: () => number,
 ) {
-  if (settings.mode !== "messy") {
-    return;
+  const shape = SHAPE_PHYSICS[settings.shape];
+  const crr = getFloorCrr(settings) * shape.floorLossMultiplier;
+  const messyLoss = settings.mode === "messy" ? 1.12 : 1;
+  let x = floorStart.x;
+  let angle = floorStart.angle;
+  let speed = floorStart.speed;
+  let stoppedAt = frames.length * STEP_MS;
+  let peakSpeed = Math.max(...frames.map((frame) => frame.speed), speed);
+
+  for (let step = frames.length; step < MAX_STEPS; step += 1) {
+    const airLoss = dragAcceleration(speed, settings, rampResult.radiusMeters);
+    const rollingLoss = crr * messyLoss * GRAVITY;
+    const wobbleLoss = shape.wobble * Math.abs(Math.sin(angle * 0.7)) * 0.28;
+    const noisyLoss = settings.mode === "messy" ? Math.max(0, (random() - 0.35) * 0.18) : 0;
+    const acceleration = rollingLoss + airLoss + wobbleLoss + noisyLoss;
+
+    speed = Math.max(0, speed - acceleration * STEP_SECONDS);
+    x += speed * PIXELS_PER_METER * STEP_SECONDS;
+    angle += (speed * STEP_SECONDS) / Math.max(0.01, rampResult.radiusMeters);
+    peakSpeed = Math.max(peakSpeed, speed);
+    pushFrame(frames, x, FLOOR_Y - rampResult.radiusPx, angle, speed);
+
+    if (speed < 0.03 || x > PREDICTION_MAX_X + 160 || x < PREDICTION_MIN_X - 160) {
+      stoppedAt = frames.length * STEP_MS;
+      break;
+    }
   }
 
-  const wobble = settings.shape === "egg" ? 0.000018 : 0.000007;
-  const weightFactor = 1 / Math.max(2, settings.ballWeight);
-  const force = {
-    x: (random() - 0.5) * wobble * weightFactor,
-    y: (random() - 0.5) * wobble * 0.4,
+  return {
+    landingX: clamp(x, PREDICTION_MIN_X, PREDICTION_MAX_X),
+    stopTime: stoppedAt,
+    peakSpeed,
   };
-
-  Matter.Body.applyForce(ball, ball.position, force);
-}
-
-function applyRollingLoss(ball: Matter.Body, settings: ExperimentSettings, radius: number) {
-  if (ball.position.y < FLOOR_Y - radius * 1.35) {
-    return;
-  }
-
-  const textureLoss = getTextureLoss(settings);
-  const sizeLoss = 0.9955 + settings.ballSize * 0.00034;
-  const shapeLoss = SHAPE_DRAG[settings.shape];
-  const weightLoss = 0.994 + settings.ballWeight * 0.00055;
-  const cleanLoss = textureLoss * sizeLoss * shapeLoss * weightLoss;
-  const messyPenalty = settings.mode === "messy" ? 0.9955 : 1;
-  const loss = clamp(cleanLoss * messyPenalty, 0.945, 0.9997);
-
-  Matter.Body.setVelocity(ball, {
-    x: ball.velocity.x * loss,
-    y: ball.velocity.y,
-  });
-  Matter.Body.setAngularVelocity(ball, ball.angularVelocity * loss);
 }
 
 export function simulateRoll(settings: ExperimentSettings, seedSuffix = "roll"): SimulationResult {
-  const engine = Matter.Engine.create({ enableSleeping: false });
-  engine.gravity.y = 1.08;
-  addStaticWorld(engine, settings);
-
-  const radius = getBallRadius(settings);
-  const start = ballStart(settings, radius);
-  const ball = makeBall(settings, start.x, start.y, radius);
   const seed = seedFromSettings([
     settings.rampHeight.toString(),
     settings.rampLength.toString(),
@@ -165,56 +250,17 @@ export function simulateRoll(settings: ExperimentSettings, seedSuffix = "roll"):
     seedSuffix,
   ]);
   const random = mulberry32(seed);
-
-  Matter.World.add(engine.world, ball);
-
-  const frames: MotionFrame[] = [];
-  let peakSpeed = 0;
-  let stableSteps = 0;
-  let stoppedAt = MAX_STEPS * STEP_MS;
-
-  for (let step = 0; step < MAX_STEPS; step += 1) {
-    applyMessyWorldForces(ball, settings, random);
-    Matter.Engine.update(engine, STEP_MS);
-    applyRollingLoss(ball, settings, radius);
-
-    peakSpeed = Math.max(peakSpeed, ball.speed);
-    frames.push({
-      x: ball.position.x,
-      y: ball.position.y,
-      angle: ball.angle,
-      speed: ball.speed,
-      t: step * STEP_MS,
-    });
-
-    const onFloor = ball.position.y > FLOOR_Y - radius * 1.2;
-    const slow = Math.abs(ball.velocity.x) < 0.05 && Math.abs(ball.angularVelocity) < 0.01;
-
-    if (onFloor && slow && step > 90) {
-      stableSteps += 1;
-    } else {
-      stableSteps = 0;
-    }
-
-    if (ball.position.x > PREDICTION_MAX_X + 140 || ball.position.y > STAGE_HEIGHT + 80) {
-      stoppedAt = step * STEP_MS;
-      break;
-    }
-
-    if (stableSteps > 24) {
-      stoppedAt = step * STEP_MS;
-      break;
-    }
-  }
-
-  const finalFrame = frames.at(-1) ?? { x: PREDICTION_MIN_X, y: FLOOR_Y, angle: 0, speed: 0, t: 0 };
-  const landingX = clamp(finalFrame.x, PREDICTION_MIN_X, PREDICTION_MAX_X);
+  const rampResult = simulateRamp(settings, random);
+  const frames = [...rampResult.frames];
+  const floorStart = simulateRampTransition(settings, rampResult, frames);
+  const floorResult = simulateFloor(settings, floorStart, rampResult, frames, random);
+  const finalFrame = frames.at(-1) ?? makeFrame(PREDICTION_MIN_X, FLOOR_Y, 0, 0, 0);
 
   return {
     frames,
-    landingX,
-    stopTime: stoppedAt,
-    peakSpeed,
+    landingX: floorResult.landingX,
+    stopTime: floorResult.stopTime,
+    peakSpeed: Math.max(floorResult.peakSpeed, finalFrame.speed),
     rampAngle: getRampPoints(settings).angle,
   };
 }
