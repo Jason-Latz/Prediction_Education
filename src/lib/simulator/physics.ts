@@ -2,6 +2,7 @@ import {
   FLOOR_Y,
   PREDICTION_MAX_X,
   PREDICTION_MIN_X,
+  RAMP_TRANSITION_RUN,
   TEXTURES,
 } from "./constants";
 import { clamp, getBallRadius, getBallStart, getRampPoints, normalize } from "./geometry";
@@ -108,6 +109,37 @@ function makeFrame(x: number, y: number, angle: number, speed: number, t: number
   };
 }
 
+function settleAngle(settings: ExperimentSettings, angle: number) {
+  if (settings.shape === "cube") {
+    return Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
+  }
+
+  if (settings.shape === "egg") {
+    return Math.round((angle - Math.PI / 2) / Math.PI) * Math.PI + Math.PI / 2;
+  }
+
+  return angle;
+}
+
+function getContactSupportPx(settings: ExperimentSettings, radiusPx: number, angle: number) {
+  if (settings.shape === "cube") {
+    const halfSide = (radiusPx * 1.65) / 2;
+    return halfSide * (Math.abs(Math.cos(angle)) + Math.abs(Math.sin(angle)));
+  }
+
+  if (settings.shape === "egg") {
+    const radiusX = radiusPx * 0.78;
+    const radiusY = radiusPx * 1.18;
+    return Math.hypot(radiusX * Math.sin(angle), radiusY * Math.cos(angle));
+  }
+
+  return radiusPx;
+}
+
+function getFloorContactY(settings: ExperimentSettings, radiusPx: number, angle: number) {
+  return FLOOR_Y - getContactSupportPx(settings, radiusPx, angle);
+}
+
 function pushFrame(frames: MotionFrame[], x: number, y: number, angle: number, speed: number) {
   frames.push(makeFrame(x, y, angle, speed, frames.length * STEP_MS));
 }
@@ -128,6 +160,8 @@ function simulateRamp(settings: ExperimentSettings, random: () => number) {
   let distanceMeters = 0;
   let speed = 0;
   let angle = -settings.rampHeight * 0.04;
+
+  pushFrame(frames, start.x, start.y, angle, speed);
 
   for (let step = 0; step < MAX_STEPS && distanceMeters < rampDistanceMeters; step += 1) {
     const alongAcceleration =
@@ -152,10 +186,6 @@ function simulateRamp(settings: ExperimentSettings, random: () => number) {
   const endX = ramp.start.x + tangent.x * endAlongRamp - normal.x * (radiusPx + 10);
   const endY = ramp.start.y + tangent.y * endAlongRamp - normal.y * (radiusPx + 10);
 
-  if (frames.length === 0) {
-    pushFrame(frames, start.x, start.y, angle, speed);
-  }
-
   return {
     frames,
     end: { x: endX, y: endY },
@@ -173,24 +203,37 @@ function simulateRampTransition(
   frames: MotionFrame[],
 ) {
   const shape = SHAPE_PHYSICS[settings.shape];
-  const floorCenterY = FLOOR_Y - rampResult.radiusPx;
   const startX = rampResult.end.x;
   const startY = rampResult.end.y;
-  const endX = startX + rampResult.radiusPx * 0.45;
+  const endX = startX + RAMP_TRANSITION_RUN;
+  const transitionAngleStep = (rampResult.speed * STEP_SECONDS) / Math.max(0.01, rampResult.radiusMeters);
+  const expectedEndAngle = rampResult.angle + transitionAngleStep * 18;
+  const endY = getFloorContactY(settings, rampResult.radiusPx, expectedEndAngle);
+  const startTangent = {
+    x: rampResult.tangent.x * RAMP_TRANSITION_RUN * 0.7,
+    y: rampResult.tangent.y * RAMP_TRANSITION_RUN * 0.7,
+  };
+  const endTangent = {
+    x: RAMP_TRANSITION_RUN * 0.7,
+    y: 0,
+  };
   let angle = rampResult.angle;
 
-  for (let step = 1; step <= 8; step += 1) {
-    const progress = step / 8;
-    const eased = 1 - (1 - progress) ** 2;
-    const x = startX + (endX - startX) * eased;
-    const y = startY + (floorCenterY - startY) * eased;
-    angle += (rampResult.speed * STEP_SECONDS) / Math.max(0.01, rampResult.radiusMeters);
+  for (let step = 1; step <= 18; step += 1) {
+    const t = step / 18;
+    const h00 = 2 * t ** 3 - 3 * t ** 2 + 1;
+    const h10 = t ** 3 - 2 * t ** 2 + t;
+    const h01 = -2 * t ** 3 + 3 * t ** 2;
+    const h11 = t ** 3 - t ** 2;
+    const x = h00 * startX + h10 * startTangent.x + h01 * endX + h11 * endTangent.x;
+    const y = h00 * startY + h10 * startTangent.y + h01 * endY + h11 * endTangent.y;
+    angle += transitionAngleStep;
     pushFrame(frames, x, y, angle, rampResult.speed);
   }
 
   return {
     x: endX,
-    y: floorCenterY,
+    y: endY,
     speed: Math.max(0, rampResult.speed * shape.landingEfficiency),
     angle,
   };
@@ -223,7 +266,14 @@ function simulateFloor(
     x += speed * PIXELS_PER_METER * STEP_SECONDS;
     angle += (speed * STEP_SECONDS) / Math.max(0.01, rampResult.radiusMeters);
     peakSpeed = Math.max(peakSpeed, speed);
-    pushFrame(frames, x, FLOOR_Y - rampResult.radiusPx, angle, speed);
+    const displayAngle = speed < 0.08 ? settleAngle(settings, angle) : angle;
+    pushFrame(
+      frames,
+      x,
+      getFloorContactY(settings, rampResult.radiusPx, displayAngle),
+      displayAngle,
+      speed,
+    );
 
     if (speed < 0.03 || x > PREDICTION_MAX_X + 160 || x < PREDICTION_MIN_X - 160) {
       stoppedAt = frames.length * STEP_MS;

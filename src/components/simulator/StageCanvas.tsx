@@ -6,6 +6,7 @@ import {
   FLOOR_Y,
   PREDICTION_MAX_X,
   PREDICTION_MIN_X,
+  RAMP_TRANSITION_RUN,
   STAGE_HEIGHT,
   STAGE_WIDTH,
 } from "@/lib/simulator/constants";
@@ -234,13 +235,25 @@ function drawStage(
   context.lineTo(ramp.end.x, ramp.end.y);
   context.stroke();
 
+  context.beginPath();
+  context.moveTo(ramp.end.x, ramp.end.y);
+  context.bezierCurveTo(
+    ramp.end.x + RAMP_TRANSITION_RUN * 0.32,
+    ramp.end.y + 18,
+    ramp.end.x + RAMP_TRANSITION_RUN * 0.58,
+    FLOOR_Y - 16,
+    ramp.end.x + RAMP_TRANSITION_RUN,
+    FLOOR_Y - 10,
+  );
+  context.stroke();
+
   context.strokeStyle = "rgba(32, 38, 36, 0.34)";
   context.lineWidth = 5;
   context.beginPath();
   context.moveTo(ramp.start.x + 16, ramp.start.y + 20);
   context.lineTo(ramp.start.x + 16, FLOOR_Y);
-  context.moveTo(ramp.end.x - 16, ramp.end.y + 12);
-  context.lineTo(ramp.end.x - 16, FLOOR_Y);
+  context.moveTo(ramp.end.x + RAMP_TRANSITION_RUN - 16, FLOOR_Y - 4);
+  context.lineTo(ramp.end.x + RAMP_TRANSITION_RUN - 16, FLOOR_Y);
   context.stroke();
 
   drawPredictionFlag(context, predictionX, camera);

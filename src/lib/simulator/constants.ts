@@ -7,8 +7,9 @@ export const RAMP_END_X = 360;
 export const RAMP_END_Y = FLOOR_Y - 42;
 export const RAMP_LENGTH_MIN = 322;
 export const RAMP_LENGTH_MAX = 520;
-export const RAMP_RISE_MIN = 80;
-export const RAMP_RISE_MAX = 260;
+export const RAMP_RISE_MIN = 45;
+export const RAMP_RISE_MAX = 210;
+export const RAMP_TRANSITION_RUN = 118;
 export const PREDICTION_MIN_X = 420;
 export const PREDICTION_MAX_X = 1020;
 

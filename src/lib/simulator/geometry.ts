@@ -46,7 +46,7 @@ export function getRampRise(settings: Pick<ExperimentSettings, "rampHeight">) {
 export function getRampAngle(settings: Pick<ExperimentSettings, "rampHeight" | "rampLength">) {
   const rise = getRampRise(settings);
   const length = getRampLength(settings);
-  return Math.asin(clamp(rise / length, 0.12, 0.92));
+  return Math.asin(clamp(rise / length, 0, 0.92));
 }
 
 export function getRampPoints(settings: Pick<ExperimentSettings, "rampHeight" | "rampLength">): {

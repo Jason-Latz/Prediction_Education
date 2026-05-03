@@ -20,3 +20,4 @@ Do not leave that learning only in chat history.
 - For educational simulations, verify the domain behavior numerically, not just visually; run a sweep that confirms the variables intended to matter produce visibly different outcomes and inert variables remain inert.
 - When Jason requests adding a variable he expects may have little or no effect, keep it available for inquiry but add a regression check so it does not accidentally dominate the phenomena students are meant to notice.
 - Jason prefers the physics simulator to model real-world physics accurately; do not present tuned/game-physics behavior as physically accurate, and prefer explicit physics equations plus documented assumptions.
+- For high-fidelity simulator work, add regression checks for visually plausible contact and transition behavior; landing-distance sweeps alone do not catch impossible ramp exits or unstable final poses.
